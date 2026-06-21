@@ -1,0 +1,168 @@
+--1. Danh sách sinh viên vắng học (TrangThai = 'A')
+USE NguyenTranGiaBao;
+GO
+
+--1. Danh sách sinh viên vắng học (TrangThai = 'A')
+SELECT sv.MASV, sv.HOTEN, dd.Lop, dd.NgayHoc
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE dd.TrangThai = 'A';
+--2.Đếm số buổi vắng theo từng sinh viên
+USE NguyenTranGiaBao;
+GO
+SELECT sv.MASV, sv.HOTEN, COUNT(*) AS SoBuoiVang
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE dd.TrangThai = 'A'
+GROUP BY sv.MASV, sv.HOTEN;
+--3.Thêm 1 dòng (record) vào bảng DiemDanh
+--Thêm 1 dòng (record) vào bảng KhoiPhucDiemDanh
+USE NguyenTranGiaBao;
+GO
+
+SELECT COLUMN_NAME 
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME LIKE '%khoi%' OR TABLE_NAME LIKE '%Khoi%'
+ORDER BY ORDINAL_POSITION;
+--4.Cập nhật trạng thái điểm danh của 1 sinh viên
+USE NguyenTranGiaBao;
+GO
+
+--4. Cập nhật trạng thái điểm danh của 1 sinh viên
+UPDATE dd
+SET dd.TrangThai = 'P'
+FROM DiemDanh dd
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = dd.MASV
+WHERE sv.MASV = 'SV001' 
+  AND dd.NgayHoc = '2024-01-08'
+  AND dd.TrangThai = 'A';
+
+-- Kiểm tra kết quả sau khi cập nhật
+SELECT sv.MASV, sv.HOTEN, dd.NgayHoc, dd.TrangThai
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE sv.MASV = 'SV001';
+--5.Giảng viên duyệt yêu cầu khôi phục điểm danh
+USE NguyenTranGiaBao;
+GO
+
+--5. Giảng viên duyệt yêu cầu khôi phục điểm danh
+UPDATE kp
+SET kp.Duyet = 1
+FROM KhoiPhucDiemDanh kp
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = kp.MASV
+WHERE kp.MASV = 'SV002'
+  AND kp.NgayHoc = '2024-01-08'
+  AND kp.Duyet = 0;
+
+-- Kiểm tra kết quả sau khi duyệt
+SELECT kp.MASV, sv.HOTEN, kp.Lop, kp.NgayHoc, kp.LyDo,
+       CASE kp.Duyet 
+           WHEN 0 THEN N'Chưa duyệt' 
+           WHEN 1 THEN N'Đã duyệt' 
+       END AS TrangThaiDuyet
+FROM KhoiPhucDiemDanh kp
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = kp.MASV;
+--6.Xóa 1 yêu cầu khôi phục điểm danh theo MASV, Lop, và NgayHoc Mức 2
+USE NguyenTranGiaBao;
+DELETE FROM KhoiPhucDiemDanh
+WHERE MASV = 'SV003'
+  AND Lop = 'SD21202'
+  AND NgayHoc = '2024-01-09';
+
+-- Kiểm tra kết quả sau khi xóa
+SELECT kp.MASV, sv.HOTEN, kp.Lop, kp.NgayHoc, kp.LyDo
+FROM KhoiPhucDiemDanh kp
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = kp.MASV;
+--7.Đếm số buổi vắng của từng sinh viên theo từng lớp
+USE NguyenTranGiaBao;
+GO
+SELECT sv.MASV, sv.HOTEN, dd.Lop, COUNT(*) AS SoBuoiVang
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE dd.TrangThai = 'A'
+GROUP BY sv.MASV, sv.HOTEN, dd.Lop
+ORDER BY dd.Lop, SoBuoiVang DESC;
+--8.Tìm sinh viên có số buổi vắng > 3
+USE NguyenTranGiaBao;
+GO
+
+SELECT sv.MASV, sv.HOTEN, dd.Lop, COUNT(*) AS SoBuoiVang
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE dd.TrangThai = 'A'
+GROUP BY sv.MASV, sv.HOTEN, dd.Lop;
+--9.Liệt kê sinh viên có yêu cầu khôi phục điểm danh trùng với ngày KHÔNG bị vắng
+USE NguyenTranGiaBao;
+GO
+SELECT kp.MASV, sv.HOTEN, kp.Lop, kp.NgayHoc, kp.LyDo
+FROM KhoiPhucDiemDanh kp
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = kp.MASV
+WHERE NOT EXISTS (
+    SELECT 1 
+    FROM DiemDanh dd
+    WHERE dd.MASV = kp.MASV
+      AND dd.NgayHoc = kp.NgayHoc
+      AND dd.TrangThai = 'A'
+);
+--Cập nhật trạng thái điểm danh thành 'P' cho các sinh viên đã được duyệt khôi phục
+USE NguyenTranGiaBao;
+GO
+
+--10. Cập nhật trạng thái điểm danh thành 'P' cho các sinh viên đã được duyệt khôi phục
+USE NguyenTranGiaBao;
+GO
+
+--10. Cập nhật trạng thái điểm danh thành 'P' cho các sinh viên đã được duyệt khôi phục
+UPDATE dd
+SET dd.TrangThai = 'P'
+FROM DiemDanh dd
+WHERE EXISTS (
+    SELECT 1
+    FROM KhoiPhucDiemDanh kp
+    WHERE kp.MASV = dd.MASV
+      AND kp.Lop = dd.Lop
+      AND kp.Duyet = 1
+);
+
+-- Kiểm tra kết quả sau khi cập nhật
+SELECT dd.MASV, sv.HOTEN, dd.Lop, dd.NgayHoc, dd.TrangThai
+FROM DiemDanh dd
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = dd.MASV
+ORDER BY dd.MASV, dd.NgayHoc;
+--11.Tìm sinh viên có số buổi vắng nhiều nhất
+USE NguyenTranGiaBao;
+GO
+
+--Tìm sinh viên có số buổi vắng nhiều nhất
+SELECT TOP 1 WITH TIES
+    sv.MASV, sv.HOTEN, dd.Lop, COUNT(*) AS SoBuoiVang
+FROM [dbo.tbl.Thông tin] sv
+JOIN DiemDanh dd ON sv.MASV = dd.MASV
+WHERE dd.TrangThai = 'A'
+GROUP BY sv.MASV, sv.HOTEN, dd.Lop
+ORDER BY SoBuoiVang DESC;
+--12.Liệt kê tất cả điểm danh và yêu cầu khôi phục (nếu có) của lớp (ví dụ: DP21301)
+USE NguyenTranGiaBao;
+GO
+
+SELECT 
+    dd.MASV,
+    sv.HOTEN,
+    dd.Lop,
+    dd.NgayHoc,
+    dd.TrangThai,
+    kp.LyDo,
+    CASE kp.Duyet
+        WHEN 0 THEN N'Chưa duyệt'
+        WHEN 1 THEN N'Đã duyệt'
+        ELSE N'chờ duyệt'
+    END AS TrangThaiKhoiPhuc
+FROM DiemDanh dd
+JOIN [dbo.tbl.Thông tin] sv ON sv.MASV = dd.MASV
+LEFT JOIN KhoiPhucDiemDanh kp ON kp.MASV = dd.MASV 
+    AND kp.Lop = dd.Lop
+WHERE dd.Lop = 'DP21301'
+ORDER BY dd.MASV, dd.NgayHoc;
+USE NguyenTranGiaBao;
+GO
